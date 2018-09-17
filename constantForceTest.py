@@ -1,0 +1,82 @@
+#!/usr/bin/python
+from __future__ import division
+import time
+import sys
+import spidev
+import Adafruit_PCA9685
+
+pwm = Adafruit_PCA9685.PCA9685()
+# Set frequency to 60hz, good for servos.
+pwm.set_pwm_freq(60)
+
+# Import SPI library (for hardware SPI) and MCP3008 library.
+import Adafruit_GPIO.SPI as SPI
+import Adafruit_MCP3008
+
+# Hardware SPI configuration:
+SPI_PORT   = 0
+SPI_DEVICE = 0
+mcp = Adafruit_MCP3008.MCP3008(spi=SPI.SpiDev(SPI_PORT, SPI_DEVICE))
+
+def readadc(adcnum):
+    v = mcp.read_adc(adcnum)
+    # return a value proportional til to potentiometer value (serial resistance
+    # will return approx [0:10000]
+    v = v/(1.0 - (v/1024))
+    return v
+
+class Motor:
+    def __init__(self, name, channel, adc):
+        self.channel = channel
+        self.adc = adc
+        self.neutral = 440
+        self._targetForce = 0
+        self.name = name
+
+        self.ep = 0
+        self.totalError = 0
+
+    def force(self):
+        return readadc(self.adc)
+
+    def setTarget(self, targetForce):
+        self._targetForce = targetForce
+
+    def move(self, v):
+        print "Correction: ", self.name, v
+        pwm.set_pwm(self.channel, 0, self.neutral + v)
+
+    def update(self, dt):
+        f = self.force()
+        print "force: ", self.name, f
+        e = self._targetForce - f
+        # P term
+        p = -0.005 * e
+        # D term
+        d = 0.0009 * (self.ep-e)/dt
+        # I term
+        self.totalError = self.totalError + e*dt
+        i = 0.0 * self.totalError
+        i = 0
+        correction = int(p + d + i)
+        self.move(correction)
+        self.ep = e
+
+m1 = Motor("m1", 15, 0)
+m1.setTarget(5000)
+
+#m2 = Motor(9, 1)
+#m2.name = "m2"
+#m2.setTarget(100)
+
+tp = time.time()
+time.sleep(0.1)
+while True:
+    t = time.time()
+    dt = t - tp 
+
+    m1.update(dt)
+    #m2.update(dt)
+    
+    time.sleep(0.1)
+    tp = t
