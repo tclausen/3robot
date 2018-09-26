@@ -19,12 +19,6 @@ try:
         m1.setTarget(2000)
         m2.setTarget(2000)
         time.sleep(2.0)
-        m1.setTarget(8000)
-        m2.setTarget(8000)
-        time.sleep(2.0)
-        m1.setTarget(5000)
-        m2.setTarget(5000)
-        time.sleep(2.0)
 except KeyboardInterrupt:
     motors.stop()
     print ("Closing state.txt")
